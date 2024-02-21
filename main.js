@@ -23,7 +23,7 @@ $(document).ready(function() {
 
     $('#high_score').text(`High Score: ${highScore}`);
 
-    // Load player settings 
+    // Load player settings or use defaults
     let playerName = sessionStorage.getItem('playerName') || 'Player';
 
     let numCards = parseInt(sessionStorage.getItem('numCards')) || 48; // Default to 48 cards 
@@ -74,66 +74,64 @@ $(document).ready(function() {
     let firstCard = null, secondCard = null;
     let wait = false;
 //flip card first and second cards
-function flipCard(card, index) {
-    if (wait || card.find('img').hasClass('front')) return; // Ignore if waiting or card is already flipped
+    function flipCard(card, index) {
+        if (wait) return;
+        if (card.find('img').hasClass('front')) return; // Ignore clicks on already flipped cards
 
-    // Flip to show the card
-    card.find('img').removeClass('back').addClass('front').attr('src', cards[index]);
+        card.find('img').attr('src', cards[index]).addClass('front').removeClass('back');
 
-    if (!firstCard) {
-        firstCard = { card: card, index: index };
-    } else {
-        secondCard = { card: card, index: index };
+        if (!firstCard) {
+            firstCard = { card, index };
+            return;
+        }
+        //check index
+        secondCard = { card, index };
         checkMatch();
     }
-}
 
-function checkMatch() {
-    if (firstCard.index === secondCard.index) {
-        // Prevent matching the same card with itself
-        secondCard = null;
-        return;
+    function checkMatch() {
+        // Check if the two flipped cards match by comparing their src attributes
+        let isMatch = firstCard.card.find('img').attr('src') === secondCard.card.find('img').attr('src');
+    
+        if (isMatch) {
+            setTimeout(() => {
+                // Replace matched cards with blank.png
+                firstCard.card.find('img').attr('src', 'images/blank.png').removeClass('front');
+                secondCard.card.find('img').attr('src', 'images/blank.png').removeClass('front');
+    
+               //off lick first and second cards
+                firstCard.card.off('click');
+                secondCard.card.off('click');
+    
+                matchesFound++;
+                updateScore();
+                restart();
+    
+                if (matchesFound * 2 === numCards) {
+                    gameOver();
+                }
+            }, 1000);
+        } else {
+        //wait for timing
+            wait = true;
+            setTimeout(() => {
+                flipBack(firstCard.card);
+                flipBack(secondCard.card);
+                restart();
+            }, 1500);
+        }
+        attempts++;
     }
-
-    if (firstCard.card.find('img').attr('src') === secondCard.card.find('img').attr('src')) {
-        // Match found
-        setTimeout(() => {
-            setMatched(firstCard.card);
-            setMatched(secondCard.card);
-
-            matchesFound++;
-            updateScore();
-            resetAfterAction();
-
-            if (matchesFound * 2 >= numCards) {
-                gameOver();
-            }
-        }, 1000);
-    } else {
-        // No match
-        wait = true;
-        setTimeout(() => {
-            flipBack(firstCard.card);
-            flipBack(secondCard.card);
-            resetAfterAction();
-        }, 2000);
-    }
-    attempts++;
-}
-
-function setMatched(card) {
-    // Immediately change to 'blank.png' to make visible before sliding/hiding
-    card.find('img').attr('src', 'images/blank.png').removeClass('front').addClass('matched');
-}
+    
 //flip back the card action
-function flipBack(card) {
-    card.find('img').attr('src', backOfCard).removeClass('front matched').addClass('back');
-}
-function resetAfterAction() {
-    firstCard = null;
-    secondCard = null;
-    wait = false;
-}
+    function flipBack(card) {
+        card.find('img').attr('src', backOfCard).addClass('back').removeClass('front');
+    }
+
+    function restart() {
+        [firstCard, secondCard] = [null, null];
+        wait = false;
+    }
 
     function updateScore() {
         playerScore = (matchesFound / attempts) * 100;
